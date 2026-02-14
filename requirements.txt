@@ -1,0 +1,19 @@
+fastapi                 # Modern async web framework for APIs
+uvicorn                 # ASGI server for FastAPI
+
+torch                   # Deep learning framework
+transformers            # Hugging Face transformer models
+tokenizers              # Fast tokenizer backend
+
+numpy                   # Numerical computing (used internally by torch)
+
+sqlalchemy              # ORM for database operations
+pymysql                 # MySQL database driver
+
+cryptography            # Security backend
+
+pydantic-settings       # Environment config management
+python-dotenv           
+
+pdfplumber          
+python-multipart       
