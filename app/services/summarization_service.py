@@ -23,7 +23,7 @@ class SummarizationService:
         db.refresh(summary_record)
 
         try:
-            # Run AI summarization (no artificial timeout)
+            # Run AI summarization
             output = await self.provider.summarize(text, max_sentences)
 
             summary_record.output = output
