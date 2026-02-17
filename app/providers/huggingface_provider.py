@@ -1,7 +1,7 @@
 import asyncio                     # For async execution
 import torch                       # PyTorch for deep learning
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM  # HuggingFace tools
-from .base import AIProvider       # Base class for AI providers
+from .base import AIProvider      
 
 
 class HuggingFaceProvider(AIProvider):
@@ -50,11 +50,11 @@ class HuggingFaceProvider(AIProvider):
             output_ids = self.model.generate(
                 inputs["input_ids"],
                 max_length=max_sentences * 50,     # controls size roughly by sentence count
-                min_length=max_sentences * 20,
+                min_length=max_sentences * 13,
 
                 num_beams=1,          # turn off beam copying
                 do_sample=True,      # enable creativity
-                temperature=1.15,     # higher = more new words
+                temperature=1.3,     # higher = more new words
                 top_p=0.9,           # nucleus sampling
                 repetition_penalty=1.3,
                 no_repeat_ngram_size=3,
