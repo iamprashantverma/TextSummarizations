@@ -1,7 +1,7 @@
-import asyncio                     # For async execution
-import torch                       # PyTorch for deep learning
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM  # HuggingFace tools
-from .base import AIProvider      
+import asyncio
+import torch
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+from .base import AIProvider
 
 
 class HuggingFaceProvider(AIProvider):
@@ -10,70 +10,72 @@ class HuggingFaceProvider(AIProvider):
 
         # Select GPU if available, else CPU
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        print(self.device)
+        print(f"Running on: {self.device}")
 
-        # Pretrained abstractive summarization model
-        self.model_name = "facebook/bart-large-cnn"
+        # T5 model for summarization (good balance of quality & speed)
+        self.model_name = "t5-large"
 
-        # Converts text into model tokens
+        # Load tokenizer & model
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
-
-        # Loads sequence-to-sequence generator model
         self.model = AutoModelForSeq2SeqLM.from_pretrained(self.model_name)
 
-        # Move model to CPU/GPU
+        # Move model to device
         self.model.to(self.device)
-
-        # Set model to inference mode
         self.model.eval()
 
-        # Limit CPU threads for stability
+        # CPU stability
         if self.device.type == "cpu":
             torch.set_num_threads(4)
 
-        # Run once to preload model into memory
-        self._run_summary("Warm up the model for initialization.", 3)
+        # Warm up model
+        self._run_summary(
+            "T5 is a transformer model used for text summarization tasks.",
+            None
+        )
 
-    def _run_summary(self, text: str, max_sentences: int):
+    def _run_summary(self, text: str, _):
 
-        # Convert text into token tensors
+        # T5 requires task prefix
+        prefixed_text = "summarize: " + text
+
+        # Tokenize input
         inputs = self.tokenizer(
-            text,
+            prefixed_text,
             return_tensors="pt",
             truncation=True,
             max_length=1024
         ).to(self.device)
 
-        # Disable gradient calculation (faster inference)
-        with torch.no_grad():
+        input_len = inputs["input_ids"].shape[1]
 
+        # Dynamic length (safe + clean summaries)
+        max_len = min(180, max(30, int(input_len * 0.4)))
+        min_len = min(max_len - 1, max(20, int(max_len * 0.5)))
+
+        with torch.no_grad():
             output_ids = self.model.generate(
                 inputs["input_ids"],
-                max_length=max_sentences * 50,     # controls size roughly by sentence count
-                min_length=max_sentences * 13,
-
-                num_beams=1,          # turn off beam copying
-                do_sample=True,      # enable creativity
-                temperature=1.3,     # higher = more new words
-                top_p=0.9,           # nucleus sampling
-                repetition_penalty=1.3,
+                max_length=max_len,
+                min_length=min_len,
+                num_beams=4,                 # beam search = better summaries
+                length_penalty=1.0,
                 no_repeat_ngram_size=3,
                 early_stopping=True
             )
 
-
-        # Convert tokens back to readable text
-        return self.tokenizer.decode(
+        # Decode to readable text
+        summary = self.tokenizer.decode(
             output_ids[0],
-            skip_special_tokens=True
+            skip_special_tokens=True,
+            clean_up_tokenization_spaces=True
         )
 
-    async def summarize(self, text: str, max_sentences: int):
+        return summary.strip()
 
-        # Get async event loop
+    async def summarize(self, text: str, max_sentences: int = None):
+
         loop = asyncio.get_running_loop()
 
-        # Run heavy ML task in background thread
         return await loop.run_in_executor(
             None,
             lambda: self._run_summary(text, max_sentences)
